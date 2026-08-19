@@ -118,7 +118,7 @@ High-quality digital illustration, natural expression, tasteful clothing, cinema
   }
 });
 
-app.get("*", (req, res) => {
+app.get(/{*splat}, (req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
