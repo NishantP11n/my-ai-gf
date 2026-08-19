@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>My AI Companion 💗</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f1020;
+            color: white;
+        }
+
+        .app {
+            max-width: 1100px;
+            min-height: 100vh;
+            margin: auto;
+
+            display: grid;
+            grid-template-columns: 300px 1fr;
+        }
+
+        /* LEFT PANEL */
+
+        aside {
+            background: #17182c;
+            padding: 20px;
+            border-right: 1px solid #292b48;
+        }
+
+        aside h1 {
+            font-size: 22px;
+            margin-bottom: 7px;
+        }
+
+        .muted {
+            color: #a8aac4;
+            font-size: 13px;
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 7px;
+
+            font-size: 13px;
+            color: #c8c9dd;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+
+            padding: 11px;
+
+            border-radius: 10px;
+            border: 1px solid #343657;
+
+            background: #0f1020;
+            color: white;
+
+            outline: none;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+
+            padding: 11px 15px;
+
+            background: #ff4f9a;
+            color: white;
+
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+
+            gap: 8px;
+
+            margin-top: 12px;
+        }
+
+        .secondary {
+            background: #292b48;
+        }
+
+        /* MAIN */
+
+        main {
+            min-height: 100vh;
+
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 18px 20px;
+
+            background: #15162a;
+            border-bottom: 1px solid #292b48;
+        }
+
+        header strong {
+            font-size: 20px;
+        }
+
+        /* CHAT */
+
+        .chat {
+            flex: 1;
+
+            padding: 20px;
+
+            overflow-y: auto;
+        }
+
+        .msg {
+            max-width: 78%;
+
+            padding: 12px 15px;
+
+            margin: 10px 0;
+
+            border-radius: 17px;
+
+            line-height: 1.5;
+
+            white-space: pre-wrap;
+        }
+
+        .user {
+            margin-left: auto;
+
+            background: #ff4f9a;
+        }
+
+        .ai {
+            background: #242640;
+        }
+
+        /* IMAGE */
+
+        .gallery {
+            display: none;
+
+            padding: 0 20px 20px;
+        }
+
+        .gallery img {
+            width: 100%;
+            max-width: 500px;
+
+            display: block;
+
+            margin: auto;
+
+            border-radius: 18px;
+        }
+
+        /* COMPOSER */
+
+        .composer {
+            padding: 14px;
+
+            background: #15162a;
+
+            border-top: 1px solid #292b48;
+        }
+
+        .message-row {
+            display: flex;
+
+            gap: 8px;
+        }
+
+        .message-row textarea {
+            min-height: 55px;
+        }
+
+        .send-button {
+            min-width: 80px;
+        }
+
+        .status {
+            margin-top: 8px;
+
+            color: #a8aac4;
+
+            font-size: 12px;
+        }
+
+        /* MOBILE */
+
+        @media (max-width: 760px) {
+
+            .app {
+                display: block;
+            }
+
+            aside {
+                border-right: none;
+                border-bottom: 1px solid #292b48;
+            }
+
+            .chat {
+                min-height: 50vh;
+            }
+
+            .msg {
+                max-width: 90%;
+            }
+
+            .message-row {
+                align-items: flex-end;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SETTINGS -->
+
+    <aside>
+
+        <h1>💗 My AI Companion</h1>
+
+        <p class="muted">
+            Create your own fictional AI companion.
+        </p>
+
+
+        <label>AI Name</label>
+
+        <input
+            id="name"
+            type="text"
+            value="Maya"
+        >
+
+
+        <label>Romantic Style</label>
+
+        <select id="tone">
+
+            <option value="sweet and romantic">
+                Sweet & Romantic
+            </option>
+
+            <option value="cute and playful">
+                Cute & Playful
+            </option>
+
+            <option value="calm and caring">
+                Calm & Caring
+            </option>
+
+            <option value="confident and funny">
+                Confident & Funny
+            </option>
+
+        </select>
+
+
+        <label>Personality</label>
+
+        <textarea
+            id="style"
+            rows="4"
+        >caring, playful, supportive, funny</textarea>
+
+
+        <label>Language</label>
+
+        <input
+            id="language"
+            type="text"
+            value="Marathi mixed with English"
+        >
+
+
+        <div class="actions">
+
+            <button
+                class="secondary"
+                onclick="saveProfile()"
+            >
+                Save
+            </button>
+
+            <button
+                class="secondary"
+                onclick="clearChat()"
+            >
+                Clear
+            </button>
+
+        </div>
+
+
+        <!-- IMAGE -->
+
+        <label>
+            Generate AI Image ✨
+        </label>
+
+        <textarea
+            id="imagePrompt"
+            rows="4"
+            placeholder="Example: adult woman in a pink dress sitting in a beautiful cafe"
+        ></textarea>
+
+
+        <button
+            style="width:100%; margin-top:8px;"
+            onclick="generateImage()"
+        >
+            Create Image ✨
+        </button>
+
+
+        <div
+            id="status"
+            class="status"
+        ></div>
+
+    </aside>
+
+
+    <!-- MAIN CHAT -->
+
+    <main>
+
+        <header>
+
+            <strong id="headerName">
+                Maya
+            </strong>
+
+            <div class="muted">
+                AI Companion • Fictional Character
+            </div>
+
+        </header>
+
+
+        <!-- CHAT AREA -->
+
+        <div
+            id="chat"
+            class="chat"
+        ></div>
+
+
+        <!-- GENERATED IMAGE -->
+
+        <div
+            id="gallery"
+            class="gallery"
+        >
+
+            <img
+                id="generatedImage"
+                alt="Generated AI companion"
+            >
+
+        </div>
+
+
+        <!-- MESSAGE BOX -->
+
+        <div class="composer">
+
+            <div class="message-row">
+
+                <textarea
+                    id="input"
+                    placeholder="Type something..."
+                ></textarea>
+
+                <button
+                    class="send-button"
+                    onclick="sendMessage()"
+                >
+                    Send
+                </button>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+    /* CHAT MEMORY */
+
+    let messages = JSON.parse(
+        localStorage.getItem("ai_gf_messages") || "[]"
+    );
+
+
+    /* GET PROFILE */
+
+    function getProfile() {
+
+        return {
+
+            name:
+                document.getElementById("name").value
+                || "Maya",
+
+            tone:
+                document.getElementById("tone").value,
+
+            style:
+                document.getElementById("style").value,
+
+            language:
+                document.getElementById("language").value
+
+        };
+
+    }
+
+
+    /* SAVE PROFILE */
+
+    function saveProfile() {
+
+        const profile = getProfile();
+
+        localStorage.setItem(
+            "ai_gf_profile",
+            JSON.stringify(profile)
+        );
+
+        document.getElementById(
+            "headerName"
+        ).textContent = profile.name;
+
+        setStatus("Profile saved ❤️");
+
+    }
+
+
+    /* LOAD PROFILE */
+
+    function loadProfile() {
+
+        const saved =
+            JSON.parse(
+                localStorage.getItem(
+                    "ai_gf_profile"
+                ) || "null"
+            );
+
+        if (!saved) {
+            return;
+        }
+
+        document.getElementById("name").value =
+            saved.name || "Maya";
+
+        document.getElementById("tone").value =
+            saved.tone || "sweet and romantic";
+
+        document.getElementById("style").value =
+            saved.style || "";
+
+        document.getElementById("language").value =
+            saved.language ||
+            "Marathi mixed with English";
+
+        document.getElementById(
+            "headerName"
+        ).textContent =
+            saved.name || "Maya";
+
+    }
+
+
+    /* SHOW STATUS */
+
+    function setStatus(text) {
+
+        document.getElementById(
+            "status"
+        ).textContent = text;
+
+    }
+
+
+    /* DISPLAY CHAT */
+
+    function renderChat() {
+
+        const chat =
+            document.getElementById("chat");
+
+        chat.innerHTML = "";
+
+        messages.forEach(message => {
+
+            const div =
+                document.createElement("div");
+
+            if (message.role === "user") {
+
+                div.className = "msg user";
+
+            } else {
+
+                div.className = "msg ai";
+
+            }
+
+            div.textContent =
+                message.content;
+
+            chat.appendChild(div);
+
+        });
+
+
+        chat.scrollTop =
+            chat.scrollHeight;
+
+    }
+
+
+    /* SEND MESSAGE */
+
+    async function sendMessage() {
+
+        const input =
+            document.getElementById("input");
+
+        const text =
+            input.value.trim();
+
+        if (!text) {
+            return;
+        }
+
+
+        messages.push({
+
+            role: "user",
+
+            content: text
+
+        });
+
+
+        input.value = "";
+
+        renderChat();
+
+        setStatus("Thinking... 💗");
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/chat",
+                    {
+
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            messages:
+                                messages,
+
+                            profile:
+                                getProfile()
+
+                        })
+
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Chat request failed"
+                );
+
+            }
+
+
+            messages.push({
+
+                role: "assistant",
+
+                content:
+                    data.reply
+
+            });
+
+
+            localStorage.setItem(
+
+                "ai_gf_messages",
+
+                JSON.stringify(
+                    messages.slice(-50)
+                )
+
+            );
+
+
+            renderChat();
+
+            setStatus("");
+
+        }
+
+        catch (error) {
+
+            messages.push({
+
+                role: "assistant",
+
+                content:
+                    "Sorry ❤️ Server error: "
+                    + error.message
+
+            });
+
+            renderChat();
+
+            setStatus(
+                "Server/API key check करा."
+            );
+
+        }
+
+    }
+
+
+    /* GENERATE IMAGE */
+
+    async function generateImage() {
+
+        const prompt =
+            document
+                .getElementById(
+                    "imagePrompt"
+                )
+                .value
+                .trim();
+
+
+        if (!prompt) {
+
+            setStatus(
+                "Image description लिही."
+            );
+
+            return;
+
+        }
+
+
+        setStatus(
+            "Image generating... ✨"
+        );
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/image",
+                    {
+
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            prompt: prompt,
+
+                            profile:
+                                getProfile()
+
+                        })
+
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Image generation failed"
+                );
+
+            }
+
+
+            document.getElementById(
+                "generatedImage"
+            ).src = data.image;
+
+
+            document.getElementById(
+                "gallery"
+            ).style.display = "block";
+
+
+            setStatus(
+                "Image ready ✨"
+            );
+
+        }
+
+        catch (error) {
+
+            setStatus(
+                "Image error: "
+                + error.message
+            );
+
+        }
+
+    }
+
+
+    /* CLEAR CHAT */
+
+    function clearChat() {
+
+        messages = [];
+
+        localStorage.removeItem(
+            "ai_gf_messages"
+        );
+
+        renderChat();
+
+    }
+
+
+    /* ENTER KEY */
+
+    document
+        .getElementById("input")
+        .addEventListener(
+            "keydown",
+            function(event) {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    sendMessage();
+
+                }
+
+            }
+        );
+
+
+    /* START */
+
+    loadProfile();
+
+    renderChat();
+
+</script>
+
+</body>
+</html>
