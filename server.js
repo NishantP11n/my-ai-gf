@@ -1,4 +1,4 @@
-import express from "express";
+toimport express from "express";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -118,7 +118,7 @@ High-quality digital illustration, natural expression, tasteful clothing, cinema
   }
 });
 
-app.get(/{*splat}, (req, res) => {
+app.get("/{*splat}", (req, res) => {
   res.sendFile(process.cwd() + "/public/index.html");
 });
 
