@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
+const { InferenceClient } = require("@huggingface/inference");
 
 const app = express();
 
@@ -20,7 +21,10 @@ app.use(express.urlencoded({ extended: true }));
 
 const personality = (p = {}) => {
   const name = String(p.name || "Maya").slice(0, 40);
-  const age = String(p.age || "adult").slice(0, 20);
+
+  const age = String(
+    p.age || "adult"
+  ).slice(0, 20);
 
   const vibe = String(
     p.vibe || "sweet, caring, supportive and playful"
@@ -66,7 +70,8 @@ app.post("/api/chat", async (req, res) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({
-        error: "GEMINI_API_KEY is not configured on the server."
+        error:
+          "GEMINI_API_KEY is not configured on the server."
       });
     }
 
@@ -81,6 +86,7 @@ app.post("/api/chat", async (req, res) => {
             m.role === "assistant"
               ? "model"
               : "user",
+
           parts: [
             {
               text: String(
@@ -95,10 +101,13 @@ app.post("/api/chat", async (req, res) => {
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GEMINI_API_KEY
+          "x-goog-api-key":
+            process.env.GEMINI_API_KEY
         },
+
         body: JSON.stringify({
           systemInstruction: {
             parts: [
@@ -107,7 +116,9 @@ app.post("/api/chat", async (req, res) => {
               }
             ]
           },
+
           contents: safeMessages,
+
           generationConfig: {
             temperature: 0.9,
             maxOutputTokens: 1000
@@ -138,7 +149,10 @@ app.post("/api/chat", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("CHAT ERROR:", err);
+    console.error(
+      "CHAT ERROR:",
+      err
+    );
 
     return res.status(500).json({
       error:
@@ -149,16 +163,18 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // ============================================================
-// IMAGE GENERATION - HUGGING FACE INFERENCE PROVIDERS
-// Provider: Fal AI
-// Model: black-forest-labs/FLUX.1-dev
+// IMAGE GENERATION
+// Hugging Face Inference Providers
+// Provider: fal-ai
+// Model: FLUX.1-dev
 // ============================================================
 
 app.post("/api/image", async (req, res) => {
   try {
     if (!process.env.HF_TOKEN) {
       return res.status(500).json({
-        error: "HF_TOKEN is not configured on the server."
+        error:
+          "HF_TOKEN is not configured on the server."
       });
     }
 
@@ -171,19 +187,22 @@ app.post("/api/image", async (req, res) => {
       profile.name || "Maya"
     ).slice(0, 40);
 
-    const userPrompt = String(prompt)
+    const userPrompt = String(
+      prompt || ""
+    )
       .slice(0, 1500)
       .trim();
 
     if (!userPrompt) {
       return res.status(400).json({
-        error: "Image prompt is required."
+        error:
+          "Image prompt is required."
       });
     }
 
     const finalPrompt = `
-Create a safe, non-explicit portrait or scene
-of a fictional adult character named ${name}.
+Create a safe, non-explicit image of a fictional
+adult character named ${name}.
 
 User visual description:
 ${userPrompt}
@@ -200,80 +219,59 @@ Requirements:
 - Detailed face and environment.
 `;
 
-    /*
-     * Hugging Face Inference Providers
-     *
-     * Provider:
-     *   fal-ai
-     *
-     * Model:
-     *   black-forest-labs/FLUX.1-dev
-     *
-     * Important:
-     * This is NOT the old hf-inference endpoint.
-     */
+    // --------------------------------------------------------
+    // HUGGING FACE INFERENCE CLIENT
+    // --------------------------------------------------------
 
-    const response = await fetch(
-      "https://router.huggingface.co/fal-ai/models/black-forest-labs/FLUX.1-dev",
-      {
-        method: "POST",
-
-        headers: {
-          "Authorization": `Bearer ${process.env.HF_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          inputs: finalPrompt,
-
-          parameters: {
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
-            width: 768,
-            height: 768
-          }
-        })
-      }
+    const client = new InferenceClient(
+      process.env.HF_TOKEN
     );
 
-    // --------------------------------------------------------
-    // HANDLE IMAGE PROVIDER ERROR
-    // --------------------------------------------------------
+    console.log(
+      "Starting Hugging Face image generation..."
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    const imageBlob =
+      await client.textToImage({
+        model:
+          "black-forest-labs/FLUX.1-dev",
 
-      console.error(
-        "HUGGING FACE IMAGE ERROR:",
-        response.status,
-        errorText
-      );
+        provider:
+          "fal-ai",
 
-      return res.status(response.status).json({
-        error:
-          errorText ||
-          "Hugging Face image generation failed."
+        inputs:
+          finalPrompt,
+
+        parameters: {
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          width: 768,
+          height: 768
+        }
       });
-    }
 
     // --------------------------------------------------------
-    // IMAGE RESPONSE
+    // CONVERT IMAGE TO BASE64
     // --------------------------------------------------------
 
     const imageBuffer = Buffer.from(
-      await response.arrayBuffer()
+      await imageBlob.arrayBuffer()
     );
 
-    const mimeType =
-      response.headers.get("content-type") ||
+    const contentType =
+      imageBlob.type ||
       "image/png";
 
     const base64 =
       imageBuffer.toString("base64");
 
+    console.log(
+      "Image generated successfully."
+    );
+
     return res.json({
       image:
-        `data:${mimeType};base64,${base64}`
+        `data:${contentType};base64,${base64}`
     });
 
   } catch (err) {
@@ -284,7 +282,7 @@ Requirements:
 
     return res.status(500).json({
       error:
-        err.message ||
+        err?.message ||
         "Hugging Face image generation failed."
     });
   }
@@ -294,7 +292,6 @@ Requirements:
 // FRONTEND
 // ============================================================
 
-// Root route
 app.get("/", (req, res) => {
   res.sendFile(
     path.join(
@@ -305,7 +302,7 @@ app.get("/", (req, res) => {
   );
 });
 
-// Express 5 catch-all route
+// Express 5 catch-all
 app.get("/*splat", (req, res) => {
   res.sendFile(
     path.join(
@@ -320,8 +317,12 @@ app.get("/*splat", (req, res) => {
 // START SERVER
 // ============================================================
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    `Custom AI GF running on port ${PORT}`
-  );
-});
+app.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+    console.log(
+      `Custom AI GF running on port ${PORT}`
+    );
+  }
+);
