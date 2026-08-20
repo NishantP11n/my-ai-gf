@@ -6,6 +6,8 @@
     "start": "node server.js"
   },
   "dependencies": {
+"@huggingface/inference": 
+    "^4.13.0",   
     "express": "^5.1.0",
     "dotenv": "^17.2.1"
   }
