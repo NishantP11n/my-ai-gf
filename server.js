@@ -7,6 +7,10 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
+// ============================================================
+// MIDDLEWARE
+// ============================================================
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -17,6 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 const personality = (p = {}) => {
   const name = String(p.name || "Maya").slice(0, 40);
   const age = String(p.age || "adult").slice(0, 20);
+
   const vibe = String(
     p.vibe || "sweet, caring, supportive and playful"
   ).slice(0, 200);
@@ -41,6 +46,17 @@ Safety:
 - Keep the character clearly adult.
 `;
 };
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "custom-ai-gf"
+  });
+});
 
 // ============================================================
 // GEMINI CHAT
@@ -125,13 +141,17 @@ app.post("/api/chat", async (req, res) => {
     console.error("CHAT ERROR:", err);
 
     return res.status(500).json({
-      error: err.message || "Server error."
+      error:
+        err.message ||
+        "Server error."
     });
   }
 });
 
 // ============================================================
-// IMAGE - HUGGING FACE
+// IMAGE GENERATION - HUGGING FACE INFERENCE PROVIDERS
+// Provider: Fal AI
+// Model: black-forest-labs/FLUX.1-dev
 // ============================================================
 
 app.post("/api/image", async (req, res) => {
@@ -151,15 +171,24 @@ app.post("/api/image", async (req, res) => {
       profile.name || "Maya"
     ).slice(0, 40);
 
+    const userPrompt = String(prompt)
+      .slice(0, 1500)
+      .trim();
+
+    if (!userPrompt) {
+      return res.status(400).json({
+        error: "Image prompt is required."
+      });
+    }
+
     const finalPrompt = `
 Create a safe, non-explicit portrait or scene
 of a fictional adult character named ${name}.
 
-The user wants this visual description:
+User visual description:
+${userPrompt}
 
-${String(prompt).slice(0, 1500)}
-
-Important requirements:
+Requirements:
 - The character must clearly be an adult.
 - No nudity.
 - No explicit sexual content.
@@ -171,30 +200,51 @@ Important requirements:
 - Detailed face and environment.
 `;
 
-    // Hugging Face Inference Provider
-    // FLUX.1-schnell text-to-image model
+    /*
+     * Hugging Face Inference Providers
+     *
+     * Provider:
+     *   fal-ai
+     *
+     * Model:
+     *   black-forest-labs/FLUX.1-dev
+     *
+     * Important:
+     * This is NOT the old hf-inference endpoint.
+     */
+
     const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+      "https://router.huggingface.co/fal-ai/models/black-forest-labs/FLUX.1-dev",
       {
         method: "POST",
+
         headers: {
           "Authorization": `Bearer ${process.env.HF_TOKEN}`,
           "Content-Type": "application/json"
         },
+
         body: JSON.stringify({
           inputs: finalPrompt,
+
           parameters: {
-            num_inference_steps: 4
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            width: 768,
+            height: 768
           }
         })
       }
     );
 
+    // --------------------------------------------------------
+    // HANDLE IMAGE PROVIDER ERROR
+    // --------------------------------------------------------
+
     if (!response.ok) {
       const errorText = await response.text();
 
       console.error(
-        "HUGGING FACE ERROR:",
+        "HUGGING FACE IMAGE ERROR:",
         response.status,
         errorText
       );
@@ -206,7 +256,10 @@ Important requirements:
       });
     }
 
-    // Hugging Face returns raw image bytes
+    // --------------------------------------------------------
+    // IMAGE RESPONSE
+    // --------------------------------------------------------
+
     const imageBuffer = Buffer.from(
       await response.arrayBuffer()
     );
@@ -215,14 +268,19 @@ Important requirements:
       response.headers.get("content-type") ||
       "image/png";
 
-    const base64 = imageBuffer.toString("base64");
+    const base64 =
+      imageBuffer.toString("base64");
 
     return res.json({
-      image: `data:${mimeType};base64,${base64}`
+      image:
+        `data:${mimeType};base64,${base64}`
     });
 
   } catch (err) {
-    console.error("IMAGE ERROR:", err);
+    console.error(
+      "IMAGE ERROR:",
+      err
+    );
 
     return res.status(500).json({
       error:
@@ -236,6 +294,7 @@ Important requirements:
 // FRONTEND
 // ============================================================
 
+// Root route
 app.get("/", (req, res) => {
   res.sendFile(
     path.join(
@@ -245,6 +304,8 @@ app.get("/", (req, res) => {
     )
   );
 });
+
+// Express 5 catch-all route
 app.get("/*splat", (req, res) => {
   res.sendFile(
     path.join(
@@ -259,7 +320,7 @@ app.get("/*splat", (req, res) => {
 // START SERVER
 // ============================================================
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(
     `Custom AI GF running on port ${PORT}`
   );
