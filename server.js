@@ -236,6 +236,15 @@ Important requirements:
 // FRONTEND
 // ============================================================
 
+app.get("/", (req, res) => {
+  res.sendFile(
+    path.join(
+      process.cwd(),
+      "public",
+      "index.html"
+    )
+  );
+});
 app.get("/*splat", (req, res) => {
   res.sendFile(
     path.join(
