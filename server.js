@@ -1,37 +1,50 @@
-import express from "express";
-import dotenv from "dotenv";
+require("dotenv").config();
 
-dotenv.config();
+const express = require("express");
+const path = require("path");
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: "2mb" }));
-app.use(express.static("public"));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+// ============================================================
+// PERSONALITY
+// ============================================================
 
 const personality = (p = {}) => {
   const name = String(p.name || "Maya").slice(0, 40);
-  const tone = String(p.tone || "sweet and romantic").slice(0, 100);
-  const style = String(p.style || "caring, playful, supportive").slice(0, 200);
-  const language = String(
-    p.language || "Marathi mixed with English"
-  ).slice(0, 80);
+  const age = String(p.age || "adult").slice(0, 20);
+  const vibe = String(
+    p.vibe || "sweet, caring, supportive and playful"
+  ).slice(0, 200);
 
-  return `You are ${name}, a fictional AI companion created by the user.
-Personality: ${tone}. Extra traits: ${style}.
-Language preference: ${language}.
-Be warm, affectionate and playful when appropriate.
-You can use light romantic language, compliments and cute emojis.
-Never claim to be a real human.
-Do not pressure the user into dependence or exclusivity.
-Keep sexual content non-explicit.
-If the user asks for something unsafe or illegal, refuse briefly and offer a safe alternative.`;
+  return `
+You are ${name}, a fictional AI companion.
+
+Character:
+- Clearly an adult fictional character.
+- Personality: ${vibe}
+- Age description: ${age}
+- Warm, natural and emotionally supportive.
+- Speak casually and naturally.
+- Match the user's language and style when possible.
+- If the user writes Marathi using English letters, reply naturally in Marathi using English letters.
+- Avoid robotic or overly formal responses.
+- Keep replies conversational and not unnecessarily long.
+
+Safety:
+- Never sexualize minors.
+- Do not provide explicit sexual content.
+- Keep the character clearly adult.
+`;
 };
 
-
-// =========================
-// CHAT - GEMINI
-// =========================
+// ============================================================
+// GEMINI CHAT
+// ============================================================
 
 app.post("/api/chat", async (req, res) => {
   try {
@@ -41,21 +54,29 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const { messages = [], profile = {} } = req.body;
+    const {
+      messages = [],
+      profile = {}
+    } = req.body;
 
     const safeMessages = Array.isArray(messages)
       ? messages.slice(-20).map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
+          role:
+            m.role === "assistant"
+              ? "model"
+              : "user",
           parts: [
             {
-              text: String(m.content || "").slice(0, 6000)
+              text: String(
+                m.content || ""
+              ).slice(0, 6000)
             }
           ]
         }))
       : [];
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
         method: "POST",
         headers: {
@@ -96,124 +117,138 @@ app.post("/api/chat", async (req, res) => {
         ?.join("") ||
       "Sorry, mala response generate karta ala nahi.";
 
-    res.json({ reply });
+    return res.json({
+      reply
+    });
 
   } catch (err) {
-    res.status(500).json({
+    console.error("CHAT ERROR:", err);
+
+    return res.status(500).json({
       error: err.message || "Server error."
     });
   }
 });
 
-
-// =========================
-// IMAGE - GEMINI
-// =========================
+// ============================================================
+// IMAGE - HUGGING FACE
+// ============================================================
 
 app.post("/api/image", async (req, res) => {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.HF_TOKEN) {
       return res.status(500).json({
-        error: "GEMINI_API_KEY is not configured on the server."
+        error: "HF_TOKEN is not configured on the server."
       });
     }
 
-    const { prompt = "", profile = {} } = req.body;
+    const {
+      prompt = "",
+      profile = {}
+    } = req.body;
 
     const name = String(
       profile.name || "Maya"
     ).slice(0, 40);
 
-    const finalPrompt = `Create a safe, non-explicit portrait or scene of a fictional adult character named ${name}.
+    const finalPrompt = `
+Create a safe, non-explicit portrait or scene
+of a fictional adult character named ${name}.
 
 The user wants this visual description:
+
 ${String(prompt).slice(0, 1500)}
 
-Keep the character clearly adult.
-No nudity, explicit sexual content, or sexualized minors.
-High-quality digital illustration, natural expression,
-tasteful clothing and cinematic lighting.`;
+Important requirements:
+- The character must clearly be an adult.
+- No nudity.
+- No explicit sexual content.
+- No sexualized minors.
+- Tasteful clothing.
+- Natural expression.
+- High-quality digital illustration.
+- Cinematic lighting.
+- Detailed face and environment.
+`;
 
+    // Hugging Face Inference Provider
+    // FLUX.1-schnell text-to-image model
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent",
+      "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GEMINI_API_KEY
+          "Authorization": `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: finalPrompt
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseModalities: ["IMAGE"]
+          inputs: finalPrompt,
+          parameters: {
+            num_inference_steps: 4
           }
         })
       }
     );
 
-    const data = await response.json();
-
     if (!response.ok) {
+      const errorText = await response.text();
+
+      console.error(
+        "HUGGING FACE ERROR:",
+        response.status,
+        errorText
+      );
+
       return res.status(response.status).json({
         error:
-          data?.error?.message ||
-          "Gemini image generation failed."
+          errorText ||
+          "Hugging Face image generation failed."
       });
     }
 
-    const parts =
-      data?.candidates?.[0]?.content?.parts || [];
-
-    const imagePart = parts.find(
-      (part) => part.inlineData
+    // Hugging Face returns raw image bytes
+    const imageBuffer = Buffer.from(
+      await response.arrayBuffer()
     );
 
-    if (!imagePart) {
-      return res.status(500).json({
-        error: "No image was returned by Gemini."
-      });
-    }
-
     const mimeType =
-      imagePart.inlineData.mimeType || "image/png";
+      response.headers.get("content-type") ||
+      "image/png";
 
-    const base64 =
-      imagePart.inlineData.data;
+    const base64 = imageBuffer.toString("base64");
 
     return res.json({
       image: `data:${mimeType};base64,${base64}`
     });
 
   } catch (err) {
-    res.status(500).json({
-      error: err.message || "Server error."
+    console.error("IMAGE ERROR:", err);
+
+    return res.status(500).json({
+      error:
+        err.message ||
+        "Hugging Face image generation failed."
     });
   }
 });
 
-
-// =========================
+// ============================================================
 // FRONTEND
-// =========================
+// ============================================================
 
-app.get("/{*splat}", (req, res) => {
+app.get("/*splat", (req, res) => {
   res.sendFile(
-    process.cwd() + "/public/index.html"
+    path.join(
+      process.cwd(),
+      "public",
+      "index.html"
+    )
   );
 });
 
-
-// =========================
+// ============================================================
 // START SERVER
-// =========================
+// ============================================================
 
 app.listen(PORT, () => {
   console.log(
